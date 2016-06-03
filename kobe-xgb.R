@@ -1,4 +1,4 @@
-#Kobe caret xgb classifier
+#Kobe caret gbm classifier
 #load libraries
 library(plyr)
 library(dplyr)
@@ -44,67 +44,41 @@ data = data[,!(names(data) %in% removeNames)]
 
 #separate training and testing data
 train = data[!is.na(data$shot_made_flag),]
+train$shot_made_flag = factor(ifelse(train$shot_made_flag == 1,"Yes","No"))
 test = data[is.na(data$shot_made_flag),]
 
-#set predictor and outcome matrix
+#set predictor and outcome df
 outcomeName = "shot_made_flag"
 predictorsNames = names(train)[names(train)!=outcomeName]
 y = train[,outcomeName]
 x = data.matrix(train[,predictorsNames],rownames.force=NA)
 
-#remove shot_made_flag from data
-train$shot_made_flag = NULL
-test$shot_made_flag = NULL
-
-#create DMatrix
-Dtrain = xgb.DMatrix(data=x,label=y,missing=NaN)
-
-watchlist = list(x=Dtrain)
-
 set.seed(123)
-
-#xgboost fitting with optimal param
-param = list(
-	objective = "binary:logistic",
-	booster = "gbtree",
-	eval_metric = "logloss",
-	eta = 0.4,
-	max_depth = 3,
-	subsample = 0.40,
-	colsample_bytree = 0.40
-)
-
-#fit model with params above
-xgb = xgb.cv(
-	data = x,
-	label = y,
-	params = param,
+#set up cross-validated hyper-parameter search
+xgb_grid = expand.grid(
 	nrounds = 1000,
-	watchlist = watchlist,
-	verbose = F,
-	maximize = F,
-	nfold = 10,
-	print.every.n = 1,
-	early.stop.round = 10
-)
+	eta = c(0.01,0.001,0.0001),
+	max_depth = c(2,4,6,8,10),
+	gamma = 0,
+	colsample_bytree = 0.6,
+	min_child_weight = 1)
 
-#identify optimal nrounds
-bestRound = which.min(as.matrix(xgb)[,3])
+#pack training control params
+xgb_trcontrol = trainControl(
+	method="cv",
+	number = 10,
+	verboseIter = F,
+	returnData = F,
+	returnResamp = 'none',
+	summaryFunction = multiClassSummary,
+	allowParallel = T)
 
-#train xgboost model
-xgb = xgb.train(
-	data = Dtrain,
-	params = param,
-	nrounds = bestRound,
-	watchlist = watchlist,
-	verbose = 1,
+#train model for each param combination in grid
+xgb_train = train(
+	x = x,
+	y = y,
+	trControl = xgb_trcontrol,
+	method = "xgbTree",
+	metric = "logLoss",
 	maximize = F
 )
-
-#set test df as matrix
-test = data.matrix(test,rownames.force=NA)
-
-#predict and output to csv
-shot_made_flag = predict(xgb,test)
-output = data.frame(shot_id,shot_made_flag)
-write.csv(output,"kobe-xgb1.csv",row.names=F)
