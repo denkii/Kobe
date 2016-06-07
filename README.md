@@ -1,2 +1,2 @@
 # Kobe
-Kaggle Kobe shot prediction
+Kaggle Kobe shot selection
