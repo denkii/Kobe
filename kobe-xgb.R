@@ -62,9 +62,9 @@ xgb_grid = expand.grid(
 	nrounds = 1000,
 	eta = 0.01,
 	max_depth = c(5,6,7),
-	gamma = 0,
+	gamma = c(0,5,10),
 	colsample_bytree = 0.6,
-	min_child_weight = 1
+	min_child_weight = c(1,5,10)
 )
 
 # Pack training control parameters
@@ -90,7 +90,7 @@ xgb_train = train(
 	maximize = F
 )
 
-# Determine best model (0.6014118)
+# Determine best model (0.60042)
 min(xgb_train$results[,"logLoss"])
 xgb_train$bestTune
 
