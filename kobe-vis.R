@@ -8,16 +8,28 @@ library(dplyr)
 library(ggplot2)
 
 # Read data
-setwd("C:/Users/bjkwok/Documents/Personal - Not Backed Up - Aucune sauvegarde/References/Kobe")
+# setwd("C:/Users/bjkwok/Documents/Personal - Not Backed Up - Aucune sauvegarde/References/Kobe")
+setwd("C:/Users/bjorn/Google Drive/Misc/Data Analytics/Kaggle/Kobe")
 data = read.csv("data.csv", sep = ",", header = T, stringsAsFactors = F)
+
+# Feature adjustments
+data$game_date = as.Date(data$game_date)
+data$game_day = as.factor(weekdays(data$game_date))
+data$game_month = as.factor(format(data$game_date, '%m'))
+data$game_year = as.factor(format(data$game_date, '%Y'))
+data$playoffs = factor(ifelse(data$playoffs==1, "Yes", "No"))
+data$time_remaining = data$minutes_remaining * 60 + data$seconds_remaining
+data$clutch = factor(ifelse(data$time_remaining < 3,"Yes", "No"))
+data$shot_distance[data$shot_distance >= 30] = 45
+data$overtime = factor(ifelse(data$period > 4, "Yes", "No"))
+data$home = factor(ifelse(regexpr('@', data$matchup)==-1, "Yes", "No"))
+data$period = factor(paste("Period", data$period))
+data$playoffs = factor(data$playoffs)
+data$shot_made_flag = factor(train$shot_made_flag, levels=c("1", "0"))
 
 # Split train and test data
 train = data[!is.na(data$shot_made_flag), ]
 test = data[is.na(data$shot_made_flag), ]
-
-# Factorise necessary features
-train$shot_made_flag = factor(train$shot_made_flag, levels=c("1", "0"))
-train$playoffs = factor(train$playoffs)
 
 # Accuracy by feature plot
 pplot = function(feat){
